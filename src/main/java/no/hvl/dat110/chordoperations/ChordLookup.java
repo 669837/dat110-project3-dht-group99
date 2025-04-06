@@ -5,6 +5,7 @@ package no.hvl.dat110.chordoperations;
 
 import java.math.BigInteger;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,8 +44,23 @@ public class ChordLookup {
 		// if logic returns false; call findHighestPredecessor(key)
 		
 		// do highest_pred.findSuccessor(key) - This is a recursive call until logic returns true
-				
-		return null;					
+		NodeInterface succ = node.getSuccessor();
+		BigInteger nodeID = node.getNodeID();
+		BigInteger succID = succ.getNodeID();
+
+		BigInteger lower = nodeID.add(BigInteger.ONE);
+
+		if (Util.checkInterval(key, lower, succID)) {
+			return succ;
+		}
+
+		NodeInterface highestPred = findHighestPredecessor(key);
+
+		if (highestPred.equals(node)) {
+			return succ;
+		} else {
+			return highestPred.findSuccessor(key);
+		}
 	}
 	
 	/**
@@ -64,8 +80,21 @@ public class ChordLookup {
 		// check that finger is a member of the set {nodeID+1,...,ID-1} i.e. (nodeID+1 <= finger <= key-1) using the ComputeLogic
 		
 		// if logic returns true, then return the finger (means finger is the closest to key)
-		
-		return (NodeInterface) node;			
+		List<NodeInterface> fingerTableSnapshot;
+		synchronized (node) {
+			fingerTableSnapshot = new ArrayList<>(((Node) node).getFingerTable());
+		}
+
+		for (int i = fingerTableSnapshot.size() - 1; i >= 0; i++) {
+			NodeInterface finger = fingerTableSnapshot.get(i);
+			BigInteger fingerID = finger.getNodeID();
+			BigInteger nodeID = node.getNodeID();
+
+			if (Util.checkInterval(fingerID, nodeID.add(BigInteger.ONE), ID.subtract(BigInteger.ONE))) {
+				return finger;
+			}
+		}
+		return node;
 	}
 	
 	public void copyKeysFromSuccessor(NodeInterface succ) {

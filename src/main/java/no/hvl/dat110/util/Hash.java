@@ -29,8 +29,14 @@ public class Hash {
 		// convert the hex into BigInteger
 		
 		// return the BigInteger
-		
-		return hashint;
+
+		try {
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			byte[] digest = md.digest(entity.getBytes());
+			return new BigInteger(1, digest);
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException("MD5 algorithm not available", e);
+		}
 	}
 	
 	public static BigInteger addressSize() {
@@ -42,17 +48,19 @@ public class Hash {
 		// compute the address size = 2 ^ number of bits
 		
 		// return the address size
-		
-		return null;
+
+		return BigInteger.valueOf(2).pow(bitSize());
 	}
 	
 	public static int bitSize() {
-		
-		int digestlen = 0;
-		
 		// find the digest length
-		
-		return digestlen*8;
+		try {
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			return md.getDigestLength() * 8;
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException("MD5 algorithm not available", e);
+		}
+
 	}
 	
 	public static String toHex(byte[] digest) {

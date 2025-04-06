@@ -6,9 +6,12 @@ package no.hvl.dat110.chordoperations;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 
+import no.hvl.dat110.util.Hash;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -152,10 +155,6 @@ public class ChordProtocols {
 	}
 	
 	public void fixFingerTable() {
-		
-		try {
-			logger.info("Fixing the FingerTable for the Node: "+ chordnode.getNodeName());
-	
 			// get the finger table from the chordnode (list object)
 			
 			// ensure to clear the current finger table
@@ -171,10 +170,32 @@ public class ChordProtocols {
 			// then: use chordnode to find the successor of k. (i.e., succnode = chordnode.findSuccessor(k))
 			
 			// check that succnode is not null, then add it to the finger table
+			try {
+				logger.info("Fixing the FingerTable for the Node: " + chordnode.getNodeName());
+				BigInteger mod = Hash.addressSize();
+				int m = Hash.bitSize(); // should be 128 for MD5
+				BigInteger nodeID = chordnode.getNodeID();
 
-		} catch (RemoteException e) {
-			//
-		}
+				// Build a new finger table locally
+				List<NodeInterface> newFingerTable = new ArrayList<>();
+				for (int i = 0; i < m; i++) {
+					BigInteger offset = BigInteger.valueOf(2).pow(i);
+					BigInteger start = nodeID.add(offset).mod(mod);
+					NodeInterface succnode = chordnode.findSuccessor(start);
+					// Fallback: if findSuccessor returns null, use the current successor
+					if (succnode == null) {
+						succnode = chordnode.getSuccessor();
+					}
+					newFingerTable.add(succnode);
+				}
+				// Atomically update the finger table
+				synchronized (chordnode) {
+					((Node) chordnode).getFingerTable().clear();
+					((Node) chordnode).getFingerTable().addAll(newFingerTable);
+				}
+			} catch (RemoteException e) {
+				logger.error(e.getMessage());
+			}
 	}
 
 	protected NodeInterface getChordnode() {
