@@ -107,6 +107,21 @@ public class FileManager {
     	// call the saveFileContent() on the successor and set isPrimary=true if logic above is true otherwise set isPrimary=false
     	
     	// increment counter
+		createReplicaFiles();
+
+		for (int i = 0; i < numReplicas; i++) {
+			BigInteger replicaID = replicafiles[i];
+
+			NodeInterface successor = chordnode.findSuccessor(replicaID);
+
+			successor.addKey(replicaID);
+
+			boolean isPrimary = (i == index);
+
+			successor.saveFileContent(filename, replicaID, bytesOfFile, isPrimary);
+
+			counter++;
+		}
 		return counter;
     }
 	
@@ -132,6 +147,16 @@ public class FileManager {
 		// get the metadata (Message) of the replica from the successor (i.e., active peer) of the file
 		
 		// save the metadata in the set activeNodesforFile.
+		createReplicaFiles();
+
+		for (BigInteger replicaID : replicafiles) {
+			NodeInterface successor = chordnode.findSuccessor(replicaID);
+			Message metadata = successor.getFilesMetadata(replicaID);
+
+			if (metadata != null) {
+				activeNodesforFile.add(metadata);
+			}
+		}
 		
 		return activeNodesforFile;
 	}
@@ -151,7 +176,22 @@ public class FileManager {
 		// use the primaryServer boolean variable contained in the Message class to check if it is the primary or not
 		
 		// return the primary when found (i.e., use Util.getProcessStub to get the stub and return it)
-		
+		if (activeNodesforFile == null) {
+			try {
+				activeNodesforFile = requestActiveNodesForFile(filename);
+			} catch (RemoteException e) {
+				e.printStackTrace();
+				return null;
+			}
+		}
+
+		for (Message msg : activeNodesforFile) {
+			if (msg.isPrimaryServer()) {
+				NodeInterface stub = Util.getProcessStub(msg.getNodeName(), msg.getPort());
+				return stub;
+			}
+		}
+
 		return null; 
 	}
 	
