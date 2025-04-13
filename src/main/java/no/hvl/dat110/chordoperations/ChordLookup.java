@@ -48,18 +48,20 @@ public class ChordLookup {
 		BigInteger nodeID = node.getNodeID();
 		BigInteger succID = succ.getNodeID();
 
-		BigInteger lower = nodeID.add(BigInteger.ONE);
 
-		if (Util.checkInterval(key, lower, succID)) {
-			return succ;
-		}
+		boolean isInInterval = Util.checkInterval(nodeID.add(BigInteger.ONE), succID, key);
 
-		NodeInterface highestPred = findHighestPredecessor(key);
-
-		if (highestPred.equals(node)) {
+		if(isInInterval) {
 			return succ;
 		} else {
-			return highestPred.findSuccessor(key);
+			NodeInterface highestPred = findHighestPredecessor(key);
+			if (highestPred.getNodeID().equals(nodeID)) {
+				// If the highest predecessor is the current node, return its successor
+				return succ;
+			} else {
+				// Otherwise, recursively find the successor starting from the highest predecessor
+				return highestPred.findSuccessor(key);
+			}
 		}
 	}
 	
@@ -80,21 +82,29 @@ public class ChordLookup {
 		// check that finger is a member of the set {nodeID+1,...,ID-1} i.e. (nodeID+1 <= finger <= key-1) using the ComputeLogic
 		
 		// if logic returns true, then return the finger (means finger is the closest to key)
-		List<NodeInterface> fingerTableSnapshot;
-		synchronized (node) {
-			fingerTableSnapshot = new ArrayList<>(((Node) node).getFingerTable());
-		}
+		List<NodeInterface> fingerTable = node.getFingerTable();
 
-		for (int i = fingerTableSnapshot.size() - 1; i >= 0; i++) {
-			NodeInterface finger = fingerTableSnapshot.get(i);
-			BigInteger fingerID = finger.getNodeID();
-			BigInteger nodeID = node.getNodeID();
+		BigInteger highestPredId = node.getNodeID();
+		NodeInterface highestPred = null;
 
-			if (Util.checkInterval(fingerID, nodeID.add(BigInteger.ONE), ID.subtract(BigInteger.ONE))) {
-				return finger;
+		for(int i = fingerTable.size()-1; i >= 0; i--){
+			NodeInterface finger = fingerTable.get(i);
+
+			if(finger == null) continue;
+
+			BigInteger fingerId = finger.getNodeID();
+
+			if(Util.checkInterval(highestPredId.add(BigInteger.ONE),ID.subtract(BigInteger.ONE), fingerId)) {
+
+				if (highestPred == null || Util.checkInterval(highestPredId, ID, fingerId)) {
+					highestPred= finger;
+					highestPredId = fingerId;
+				}
 			}
+
 		}
-		return node;
+
+		return  highestPred != null ? highestPred: node;
 	}
 	
 	public void copyKeysFromSuccessor(NodeInterface succ) {
